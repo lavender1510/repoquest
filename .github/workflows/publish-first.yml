@@ -1,0 +1,46 @@
+name: Publish RepoQuest v1.0.0
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  publish:
+    if: github.repository == 'lavender1510/repoquest'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      DATABASE_URL: file:./release.db
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Restore original project and release tag
+        run: |
+          git fetch .bootstrap/source.bundle "refs/heads/main:refs/remotes/source/main"
+          git fetch .bootstrap/source.bundle "refs/tags/v1.0.0:refs/tags/v1.0.0"
+          test "$(git rev-parse refs/remotes/source/main)" = "178ced65acd969c72100ebc29b81b5451acd82a1"
+          git checkout -f -B main refs/remotes/source/main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Initialize database
+        run: npm run db:push
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint
+      - name: Tests
+        run: npm run test
+      - name: Build
+        run: npm run build
+      - name: Publish code and GitHub Release
+        run: |
+          git push origin refs/heads/main:refs/heads/main --force
+          git push origin refs/tags/v1.0.0:refs/tags/v1.0.0
+          git archive --format=tar.gz --prefix=repoquest/ v1.0.0 -o repoquest-v1.0.0.tar.gz
+          gh release create v1.0.0 repoquest-v1.0.0.tar.gz --title "RepoQuest v1.0.0 — First Quest" --notes-file RELEASE_NOTES.md --verify-tag
