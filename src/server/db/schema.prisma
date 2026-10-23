@@ -1,0 +1,146 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Repository {
+  id        String     @id @default(cuid())
+  owner     String
+  name      String
+  fullName  String     @unique
+  isPrivate Boolean    @default(false)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  snapshots Snapshot[]
+}
+
+model Snapshot {
+  id            String        @id @default(cuid())
+  repositoryId  String
+  repository    Repository    @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  createdAt     DateTime      @default(now())
+  dashboardJson String
+  agent         Agent?
+  commits       Commit[]
+  issues        Issue[]
+  pullRequests  PullRequest[]
+  runs          WorkflowRun[]
+  deployments   Deployment[]
+  regions       Region[]
+  events        ChronicleEvent[]
+  @@index([repositoryId, createdAt])
+}
+
+model Agent {
+  id         String   @id @default(cuid())
+  snapshotId String   @unique
+  snapshot   Snapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  name       String
+  className  String
+  level      Int
+  xp         Int
+  hp         Int
+  gold       Int
+  skillsJson String
+}
+
+model Commit {
+  id          String   @id @default(cuid())
+  snapshotId  String
+  snapshot    Snapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  sha         String
+  message     String
+  author      String
+  committedAt DateTime
+  url         String
+  pathsJson   String
+  @@unique([snapshotId, sha])
+}
+
+model Issue {
+  id            String   @id @default(cuid())
+  snapshotId    String
+  snapshot      Snapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  number        Int
+  title         String
+  state         String
+  labelsJson    String
+  createdAt     DateTime
+  closedAt      DateTime?
+  url           String
+  regionKey     String
+  questType     String
+  difficulty    Int
+  reward        Int
+  completedByPr Int?
+  @@unique([snapshotId, number])
+}
+
+model PullRequest {
+  id             String   @id @default(cuid())
+  snapshotId     String
+  snapshot       Snapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  number         Int
+  title          String
+  state          String
+  mergedAt       DateTime?
+  labelsJson     String
+  pathsJson      String
+  linkedJson     String
+  url            String
+  @@unique([snapshotId, number])
+}
+
+model WorkflowRun {
+  id          String   @id @default(cuid())
+  snapshotId  String
+  snapshot    Snapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  runId       BigInt
+  name        String
+  status      String
+  conclusion  String?
+  createdAt   DateTime
+  url         String
+  @@unique([snapshotId, runId])
+}
+
+model Deployment {
+  id         String   @id @default(cuid())
+  snapshotId String
+  snapshot   Snapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  deployId   BigInt
+  environment String
+  state      String
+  createdAt  DateTime
+  url        String
+  @@unique([snapshotId, deployId])
+}
+
+model Region {
+  id         String   @id @default(cuid())
+  snapshotId String
+  snapshot   Snapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  key        String
+  name       String
+  health     Int
+  complexity Int
+  openIssues Int
+  status     String
+  @@unique([snapshotId, key])
+}
+
+model ChronicleEvent {
+  id         String   @id @default(cuid())
+  snapshotId String
+  snapshot   Snapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  eventKey   String
+  kind       String
+  text       String
+  occurredAt DateTime
+  url        String?
+  @@unique([snapshotId, eventKey])
+}

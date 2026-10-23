@@ -1,0 +1,13 @@
+services:
+  repoquest:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: file:/app/data/repoquest.db
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      GITHUB_ALLOWED_REPOS: ${GITHUB_ALLOWED_REPOS:-lavender1510/repoquest}
+      ALLOW_PRIVATE_REPOS_IN_PRODUCTION: ${ALLOW_PRIVATE_REPOS_IN_PRODUCTION:-false}
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped

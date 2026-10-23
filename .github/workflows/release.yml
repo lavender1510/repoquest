@@ -1,0 +1,41 @@
+name: Release
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: write
+jobs:
+  release:
+    name: Test, Build & Publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DATABASE_URL: file:./release.db
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Initialize SQLite
+        run: npm run db:push
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run test
+      - run: npm run build
+      - name: Generate notes from Conventional Commits
+        run: node scripts/generate-release-notes.mjs "${GITHUB_REF_NAME}" generated-notes.md
+      - name: Package release source
+        run: git archive --format=tar.gz --prefix="repoquest/" "${GITHUB_REF_NAME}" -o "repoquest-${GITHUB_REF_NAME}.tar.gz"
+      - name: Publish GitHub Release
+        run: |
+          if [ "$GITHUB_REF_NAME" = "v1.0.0" ]; then
+            TITLE="RepoQuest v1.0.0 — First Quest"
+          else
+            TITLE="RepoQuest $GITHUB_REF_NAME"
+          fi
+          gh release create "$GITHUB_REF_NAME" "repoquest-${GITHUB_REF_NAME}.tar.gz" --title "$TITLE" --notes-file generated-notes.md --verify-tag

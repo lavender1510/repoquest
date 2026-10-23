@@ -1,4 +1,4 @@
-name: Publish RepoQuest v1.0.0
+name: Publish First Quest
 on:
   push:
     branches: [main]
@@ -8,7 +8,7 @@ jobs:
   publish:
     if: github.repository == 'lavender1510/repoquest'
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 30
     env:
       DATABASE_URL: file:./release.db
       GH_TOKEN: ${{ github.token }}
@@ -16,42 +16,32 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          persist-credentials: true
-      - name: Restore original project and release tag
-        run: |
-          git fetch .bootstrap/source.bundle "refs/heads/main:refs/remotes/source/main"
-          git fetch .bootstrap/source.bundle "refs/tags/v1.0.0:refs/tags/v1.0.0"
-          test "$(git rev-parse refs/remotes/source/main)" = "178ced65acd969c72100ebc29b81b5451acd82a1"
-          git checkout -f -B main refs/remotes/source/main
-      - name: Fix strict lint warnings in configuration
-        run: |
-          sed -i 's/^export default \[/const config = [/' eslint.config.mjs
-          printf '\nexport default config;\n' >> eslint.config.mjs
-          sed -i 's/^export default {/const config = {/' postcss.config.mjs
-          printf '\nexport default config;\n' >> postcss.config.mjs
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add eslint.config.mjs postcss.config.mjs
-          git commit -m "fix: satisfy strict ESLint config rules"
-          git tag -f v1.0.0
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Install dependencies
+      - name: Install
         run: npm install --no-audit --no-fund
-      - name: Initialize database
+      - name: Initialize SQLite
         run: npm run db:push
-      - name: Typecheck
+      - name: TypeScript
         run: npm run typecheck
       - name: Lint
         run: npm run lint
-      - name: Tests
+      - name: Unit tests
         run: npm run test
-      - name: Build
+      - name: Production build
         run: npm run build
-      - name: Publish code and GitHub Release
+      - name: Publish tag and release
         run: |
-          git push origin refs/heads/main:refs/heads/main --force
+          if gh release view v1.0.0 >/dev/null 2>&1; then
+            echo "v1.0.0 is already published."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if ! git show-ref --verify --quiet refs/tags/v1.0.0; then
+            git tag -a v1.0.0 -m "RepoQuest v1.0.0 — First Quest"
+          fi
           git push origin refs/tags/v1.0.0:refs/tags/v1.0.0
           git archive --format=tar.gz --prefix=repoquest/ v1.0.0 -o repoquest-v1.0.0.tar.gz
           gh release create v1.0.0 repoquest-v1.0.0.tar.gz --title "RepoQuest v1.0.0 — First Quest" --notes-file RELEASE_NOTES.md --verify-tag
