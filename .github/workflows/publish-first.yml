@@ -23,6 +23,17 @@ jobs:
           git fetch .bootstrap/source.bundle "refs/tags/v1.0.0:refs/tags/v1.0.0"
           test "$(git rev-parse refs/remotes/source/main)" = "178ced65acd969c72100ebc29b81b5451acd82a1"
           git checkout -f -B main refs/remotes/source/main
+      - name: Fix strict lint warnings in configuration
+        run: |
+          sed -i 's/^export default \[/const config = [/' eslint.config.mjs
+          printf '\nexport default config;\n' >> eslint.config.mjs
+          sed -i 's/^export default {/const config = {/' postcss.config.mjs
+          printf '\nexport default config;\n' >> postcss.config.mjs
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add eslint.config.mjs postcss.config.mjs
+          git commit -m "fix: satisfy strict ESLint config rules"
+          git tag -f v1.0.0
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
